@@ -1,0 +1,237 @@
+<html>
+  <head>
+    <link rel="stylesheet" href="../static/css/awesomplete.css" />
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <style>
+    .div-form{
+      width: 700px;
+      border: 1px solid black;
+      margin: 25px;
+      padding: 25px;
+    }
+
+    .buttons{
+      diplay:inline-block;
+    }
+
+    .rating-score{
+      width:45px;
+    }
+    </style>
+  </head>
+  <body class="container-fluid">
+    <h2>Add Movie Review</h2>
+    <div class= "div-form">
+    <form class="form-horizontal" action="{{site}}/reviews/add" onsubmit="return validateMovie()" method="post" id="addmovie">
+        <div class = "form-group">
+        <label for="name" class="control-label col-xs-2">Movie Name</label>
+        <div class="col-xs-10">
+        <input type="text" class="form-control awesomplete" name="name" id="name" placeholder="Movie Name" oninput="getSuggestions(this.value)" required>
+        </div>
+        </div>
+        <br>
+        <div class = "form-group">
+        <label for="score" class="control-label col-xs-2">Rating</label>
+        <div class="col-xs-10">
+        <input class = "form-control" type="range" name="score" min="1" value="1" max="10" step="1" onchange="updateScore(this.value);" >
+        <input type="text" id="scoretext" class="form-control rating-score" value="1" disabled>
+        </div>
+        </div>
+        <br>
+        <div class = "form-group">
+        <label for="desc" class="control-label col-xs-2">Description</label>
+        <div class="col-xs-10">
+        <textarea class="form-control" name="review" id="review" placeholder="Review Description" required></textarea>
+        </div>
+        </div>
+        <br>
+        <div class = "form-group">
+        <label for="user" class="control-label col-xs-2">Name</label>
+        <div class="col-xs-10">
+        <input type="text" class="form-control" id="user" name="user" placeholder="User Name" required>
+        </div>
+        </div>
+      <div class ="form-group buttons">
+      <div class = "col-xs-offset-2 col-xs-10">
+      <button id="submit" type="submit"  class="btn">Submit</button>
+      <button id="reviewslist" onclick="location.href='{{site}}/'" type="button" class="btn">Back to Reviews</button>
+      </div>
+      </div>
+    </form>
+    </div>
+  </body>
+  <script src="../static/js/awesomplete.js" async></script>
+  <script>
+  var list = [];
+  var timeout = null;
+  Array.prototype.contains = function ( value ) {
+   for (i in this) {
+      if (this[i] == value) return true;
+   }
+   return false;
+  }
+
+  function getSuggestions(name){
+
+    if(timeout){
+      clearTimeout(timeout);
+    }
+    if(name.length>=2){
+      timeout = setTimeout(get, 1000, name);
+    }
+    
+    
+    document.getElementById("name").focus();
+
+  }
+  var get = function(name){
+
+    
+
+    var xmlhttp = new XMLHttpRequest();
+    var reqUrl = "{{site}}/movies/search?name=" + name;
+      xmlhttp.onreadystatechange = function () {
+                if (this.readyState == 4 && this.status == 200) {
+                    successFunction(JSON.parse(this.responseText));
+                }
+                else if (this.readyState == 4 && this.status == 404){
+                    errorFunction();
+
+                }
+            };
+
+      xmlhttp.open("GET", reqUrl, true);
+      xmlhttp.send();
+
+      function successFunction(response){
+
+        for(var i = 0; i<response.length && i<3; i++){
+          if(list.contains(response[i].name)){}
+          else {
+            list.push(response[i].name);
+          }
+        }
+        var input = document.getElementById("name");
+        new Awesomplete(input, {
+        list });
+        document.getElementById("name").focus();
+        
+
+      }
+      function errorFunction(){
+        getfromDB(name);
+        document.getElementById("name").focus();
+      }
+  }
+
+  var getfromDB = function(name){
+     var xmlhttp = new XMLHttpRequest();
+    var reqUrl = "https://api.themoviedb.org/3/search/movie?api_key=45091647d3386a253c10c484e5ff7b8f&query=" + name + "&page=1";
+      xmlhttp.onreadystatechange = function () {
+                if (this.readyState == 4 && this.status == 200) {
+                    successFunction(JSON.parse(this.responseText));
+                }
+                else if (this.readyState == 4 && this.status == 404){
+                    errorFunction();
+
+                }
+            };
+
+      xmlhttp.open("GET", reqUrl, true);
+      xmlhttp.send();
+
+      function successFunction(response){
+        for(var i = 0; i<response.results.length; i++){
+          if(list.contains(response.results[i].title)){}
+          else {
+            if(i<3) list.push(response.results[i].title);
+            postLocal(response.results[i]);
+          }
+          
+
+        }
+        var input = document.getElementById("name");
+        new Awesomplete(input, {
+        list });
+        document.getElementById("name").focus();
+        
+
+      }
+      function errorFunction(){
+        document.getElementById("name").focus();
+      }
+
+  }
+
+  var postLocal = function(element){
+    var xmlhttp = new XMLHttpRequest();
+    var reqUrl = "{{site}}/movies/add";
+      xmlhttp.onreadystatechange = function () {
+                if (this.readyState == 4 && this.status == 200) {
+                    successFunction(JSON.parse(this.responseText));
+                }
+                else if (this.readyState == 4 && this.status == 404){
+                    errorFunction();
+
+                }
+            };
+
+      xmlhttp.open("post", reqUrl, true);
+      form = new FormData();
+      form.append("name", element.title);
+      form.append("desc", element.overview);
+      poster = "http://image.tmdb.org/t/p/w185" + element.poster_path;
+      form.append("poster", poster);
+      xmlhttp.send(form);
+
+      function successFunction(response){
+        document.getElementById("name").focus();
+      }
+      function errorFunction(){
+        document.getElementById("name").focus();
+      }
+
+  }
+
+  function validateMovie(){
+    var xmlhttp = new XMLHttpRequest();
+    var name = document.getElementById("name").value;
+    var reqUrl = "{{site}}/movies/findmovie?name=" + name;
+      xmlhttp.onreadystatechange = function () {
+                if (this.readyState == 4 && this.status == 200) {
+                    successFunction(JSON.parse(this.responseText));
+                }
+                else if (this.readyState == 4 && this.status == 404){
+                    errorFunction();
+
+                }
+            };
+
+      xmlhttp.open("GET", reqUrl, true);
+      xmlhttp.send();
+
+      function successFunction(){
+        return true;
+      }
+      function errorFunction(){
+        
+        alert("Movie name is not valid.");
+        return false;
+      }
+  } 
+
+  function clearList(){
+
+    while(list.length>0){
+      list.pop();
+    }
+  }
+
+
+  function updateScore(value){
+    document.getElementById("scoretext").value = value;
+  }
+
+  </script>
+</html>
+
